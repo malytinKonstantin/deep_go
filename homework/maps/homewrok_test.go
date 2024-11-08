@@ -21,8 +21,8 @@ type OrderedMap struct {
 	size int
 }
 
-func NewOrderedMap() OrderedMap {
-	return OrderedMap{
+func NewOrderedMap() *OrderedMap {
+	return &OrderedMap{
 		root: nil,
 		size: 0,
 	}
