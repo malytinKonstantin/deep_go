@@ -11,27 +11,56 @@ import (
 type COWBuffer struct {
 	data []byte
 	refs *int
-	// need to implement
 }
 
 func NewCOWBuffer(data []byte) COWBuffer {
-	return COWBuffer{} // need to implement
+	refs := new(int)
+	*refs = 1
+	return COWBuffer{
+		data: data,
+		refs: refs,
+	}
 }
 
 func (b *COWBuffer) Clone() COWBuffer {
-	return COWBuffer{} // need to implement
+	if b.refs != nil {
+		*b.refs++
+	}
+	return COWBuffer{
+		data: b.data,
+		refs: b.refs,
+	}
 }
 
 func (b *COWBuffer) Close() {
-	// need to implement
+	if b.refs == nil {
+		return
+	}
+	*b.refs--
+	if *b.refs <= 0 {
+		b.data = nil
+		b.refs = nil
+	}
 }
 
 func (b *COWBuffer) Update(index int, value byte) bool {
-	return false // need to implement
+	if index < 0 || index >= len(b.data) {
+		return false
+	}
+	if b.refs != nil && *b.refs > 1 {
+		*b.refs--
+		newData := make([]byte, len(b.data))
+		copy(newData, b.data)
+		b.data = newData
+		b.refs = new(int)
+		*b.refs = 1
+	}
+	b.data[index] = value
+	return true
 }
 
 func (b *COWBuffer) String() string {
-	return "" // need to implement
+	return *(*string)(unsafe.Pointer(&b.data))
 }
 
 func TestCOWBuffer(t *testing.T) {
@@ -67,7 +96,7 @@ func TestCOWBuffer(t *testing.T) {
 	copy2.Update(0, 'f')
 	current := copy2.data
 
-	// 1 reference - don't need to copy buffer during update
+	// 1 reference - не нужно копировать буфер при обновлении
 	assert.Equal(t, unsafe.SliceData(previous), unsafe.SliceData(current))
 
 	copy2.Close()
