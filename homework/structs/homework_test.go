@@ -108,13 +108,13 @@ type GamePerson struct {
 }
 
 func (p *GamePerson) setAttribute(offset, size int, value uint32) {
-	mask := ((1 << size) - 1) << offset
+	mask := ((uint32(1) << size) - 1) << offset
 	p.attributes &= ^mask
 	p.attributes |= (value << offset) & mask
 }
 
 func (p *GamePerson) getAttribute(offset, size int) uint32 {
-	mask := ((1 << size) - 1) << offset
+	mask := uint32(((1 << size) - 1) << offset)
 	return (p.attributes & mask) >> offset
 }
 
