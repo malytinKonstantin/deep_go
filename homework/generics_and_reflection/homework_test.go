@@ -1,101 +1,98 @@
 package main
 
 import (
+	"fmt"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func Serialize(object interface{}) string {
-	return "" // need to implement
+// go test -v homework_test.go
+
+type Person struct {
+	Name    string `properties:"name"`
+	Address string `properties:"address,omitempty"`
+	Age     int    `properties:"age"`
+	Married bool   `properties:"married"`
 }
 
-func TestSerializationProperties(t *testing.T) {
+func Serialize(person Person) string {
+	var result strings.Builder
+	v := reflect.ValueOf(person)
+	t := reflect.TypeOf(person)
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		tag := field.Tag.Get("properties")
+		if tag == "" {
+			continue
+		}
+
+		tagParts := strings.Split(tag, ",")
+		key := tagParts[0]
+		omitempty := len(tagParts) > 1 && tagParts[1] == "omitempty"
+
+		value := v.Field(i)
+		if omitempty && isEmptyValue(value) {
+			continue
+		}
+
+		result.WriteString(fmt.Sprintf("%s=%v\n", key, value.Interface()))
+	}
+
+	return strings.TrimRight(result.String(), "\n")
+}
+
+func isEmptyValue(v reflect.Value) bool {
+	switch v.Kind() {
+	case reflect.String, reflect.Array, reflect.Slice, reflect.Map:
+		return v.Len() == 0
+	case reflect.Bool:
+		return !v.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return v.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return v.Float() == 0
+	case reflect.Interface, reflect.Ptr:
+		return v.IsNil()
+	}
+	return false
+}
+
+func TestSerialization(t *testing.T) {
 	tests := map[string]struct {
-		object interface{}
+		person Person
 		result string
 	}{
-		"empty object": {
-			object: struct{}{},
-			result: "",
+		"test case with empty fields": {
+			result: "name=\nage=0\nmarried=false",
 		},
-		"object without tags": {
-			object: struct {
-				Count   int
-				Title   string
-				Pointer *int
-			}{},
-			result: "",
-		},
-		"object other tags": {
-			object: struct {
-				Count   int    `json:"count"`
-				Title   string `json:"title"`
-				Pointer *int   `json:"pointer"`
-			}{},
-			result: "",
-		},
-		"object without values": {
-			object: struct {
-				Count   int    `properties:"count"`
-				Title   string `properties:"title"`
-				Pointer *int   `properties:"pointer"`
-			}{},
-			result: `
-				count=
-				title=
-				pointer=
-			`,
-		},
-		"object without values with omitempty": {
-			object: struct {
-				Count   int    `properties:"count,omitempty"`
-				Title   string `properties:"title,omitempty"`
-				Pointer *int   `properties:"pointer,omitempty"`
-			}{},
-			result: "",
-		},
-		"object with values": {
-			object: struct {
-				Count   int    `properties:"count"`
-				Title   string `properties:"title"`
-				Pointer *int   `properties:"pointer"`
-			}{
-				Count:   100,
-				Title:   "title",
-				Pointer: new(int),
+		"test case with fields": {
+			person: Person{
+				Name:    "John Doe",
+				Age:     30,
+				Married: true,
 			},
-			result: `
-				count=100
-				title=title
-				pointer=0
-			`,
+			result: "name=John Doe\nage=30\nmarried=true",
 		},
-		"object with other types": {
-			object: struct {
-				Count   int         `properties:"count"`
-				Title   string      `properties:"title"`
-				Pointer *int        `properties:"pointer"`
-				Slice   []int       `properties:"slice"`
-				Map     map[int]int `properties:"map"`
-			}{
-				Count:   100,
-				Title:   "title",
-				Pointer: new(int),
-				Slice:   []int{1, 2, 3},
-				Map:     map[int]int{1: 1},
+		"test case with omitempty field": {
+			person: Person{
+				Name:    "John Doe",
+				Age:     30,
+				Married: true,
+				Address: "Paris",
 			},
-			result: `
-				count=100
-				title=title
-				pointer=0
-			`,
+			result: "name=John Doe\naddress=Paris\nage=30\nmarried=true",
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			result := Serialize(test.object)
+			result := Serialize(test.person)
 			assert.Equal(t, test.result, result)
 		})
 	}
